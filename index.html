@@ -83,9 +83,10 @@
                 <!-- Imagen del Ejercicio -->
                 <div class="relative bg-slate-900 rounded-2xl aspect-square flex items-center justify-center overflow-hidden border border-slate-800 shadow-inner group">
                     <img id="ex-img" src="" alt="Profession" class="w-full h-full object-cover transition duration-300 group-hover:scale-105">
-                    <div id="img-fallback-msg" class="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center p-4 text-center hidden">
-                        <i class="fa-solid fa-image-not-supported text-slate-600 text-4xl mb-2"></i>
-                        <p class="text-sm text-slate-400">Cargando recurso local...</p>
+                    <div id="img-fallback-msg" class="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-4 text-center hidden">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-4xl mb-2"></i>
+                        <p class="text-sm text-slate-200 font-bold">No se pudo cargar el archivo local</p>
+                        <p class="text-xs text-slate-400 mt-1">Verifica el nombre en "profesiones_recortadas"</p>
                     </div>
                 </div>
 
@@ -221,7 +222,7 @@
         </div>
     </div>
 
-    <!-- TOAST NOTIFICATIONS (No native alerts) -->
+    <!-- TOASTS CONTAINER -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full"></div>
 
     <!-- FOOTER -->
@@ -231,12 +232,7 @@
 
     <!-- LOGIC SCRIPT -->
     <script>
-        // CONFIGURACIÓN DE IMÁGENES LOCALES
-        // Apuntamos al nombre de tu carpeta en GitHub: "profesiones_recortadas"
-        const FOLDER_NAME = 'profesiones_recortadas';
-        const IMG_EXTENSION = 'png'; 
-
-        // LISTA EXACTA DE TUS 40 PROFESIONES (Mapeadas de tu imagen de captura)
+        // LISTA EXACTA DE TUS 40 PROFESIONES 
         const PROFESSIONS_LIST = [
             { name: "actor", pronoun: "he", article: "an" },
             { name: "architect", pronoun: "he", article: "an" },
@@ -291,7 +287,42 @@
         let geminiApiKey = "";
         let geminiVoice = "Kore";
 
-        // Custom non-blocking notification toast system
+        // Extensiones a intentar de manera secuencial para prevenir bloqueos de Linux/GitHub Pages
+        const EXTENSIONS_TO_TRY = ['png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'webp'];
+
+        function loadWithFallbackExtensions(imgElement, folder, baseName) {
+            const fallbackEl = document.getElementById('img-fallback-msg');
+            fallbackEl.classList.add('hidden'); // Ocultar mensaje por defecto
+
+            let index = 0;
+
+            function tryNext() {
+                if (index >= EXTENSIONS_TO_TRY.length) {
+                    // Si se agotaron las extensiones, mostrar error y usar placeholder de respaldo visual
+                    fallbackEl.classList.remove('hidden');
+                    imgElement.src = `https://placehold.co/500x500/1e293b/cbd5e1?text=${baseName.toUpperCase().replace('_', '+')}`;
+                    return;
+                }
+
+                const currentExt = EXTENSIONS_TO_TRY[index];
+                const testPath = `${folder}/${baseName}.${currentExt}`;
+
+                const tempImg = new Image();
+                tempImg.onload = () => {
+                    imgElement.src = testPath;
+                    fallbackEl.classList.add('hidden');
+                };
+                tempImg.onerror = () => {
+                    index++;
+                    tryNext();
+                };
+                tempImg.src = testPath;
+            }
+
+            tryNext();
+        }
+
+        // Sistema de notificaciones no obstructivo interactivo
         function showNotification(message, type = 'info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -309,13 +340,7 @@
             }
             
             container.appendChild(toast);
-            
-            // Force reflow
-            setTimeout(() => {
-                toast.classList.remove('translate-y-2', 'opacity-0');
-            }, 10);
-
-            // Auto dismiss
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
             setTimeout(() => {
                 toast.classList.add('translate-y-2', 'opacity-0');
                 setTimeout(() => toast.remove(), 300);
@@ -359,21 +384,17 @@
         // Generar pool de 60 ejercicios distribuidos pedagógicamente
         function generateExercises() {
             exercises = [];
-            
-            // Mezclar lista base de profesiones
             const shuffled = [...PROFESSIONS_LIST].sort(() => 0.5 - Math.random());
             
             for (let i = 0; i < 60; i++) {
-                // Obtener profesión real de referencia
                 const baseProf = shuffled[i % shuffled.length];
                 
                 if (activeTab === 'answers') {
                     // SECCIÓN RESPUESTAS: 70% negativas, 30% positivas
-                    const isNegative = i < 42; // 42 es el 70% de 60
+                    const isNegative = i < 42; 
                     let questionProfession = baseProf;
                     
                     if (isNegative) {
-                        // Buscar una profesión incorrecta distinta para formular la pregunta incorrecta
                         let wrongProf = shuffled[Math.floor(Math.random() * shuffled.length)];
                         while (wrongProf.name === baseProf.name) {
                             wrongProf = shuffled[Math.floor(Math.random() * shuffled.length)];
@@ -381,13 +402,11 @@
                         questionProfession = wrongProf;
                     }
 
-                    // Formatear pregunta legible con pronombres correctos
                     const pr = baseProf.pronoun;
                     const art = questionProfession.article;
                     const cleanName = questionProfession.name.replace('_', ' ');
                     const questionText = `Is ${pr} ${art} ${cleanName}?`;
 
-                    // Formatear respuesta esperada exacta
                     let expected = "";
                     if (isNegative) {
                         const baseCleanName = baseProf.name.replace('_', ' ');
@@ -407,7 +426,7 @@
 
                 } else {
                     // SECCIÓN CREACIÓN DE PREGUNTAS: 70% dictado preferencial
-                    const forceDictation = i < 42; // 70% de ejercicios requiere dictado preferencial
+                    const forceDictation = i < 42; 
                     const pr = baseProf.pronoun;
                     const art = baseProf.article;
                     const cleanName = baseProf.name.replace('_', ' ');
@@ -424,10 +443,7 @@
                 }
             }
 
-            // Mezclar el set generado para que la distribución del 70% esté repartida de forma natural
             exercises.sort(() => 0.5 - Math.random());
-            
-            // Reasignar IDs secuenciales
             exercises.forEach((ex, idx) => ex.id = idx + 1);
         }
 
@@ -438,38 +454,24 @@
             const ex = exercises[currentIndex];
             attempts = 0;
 
-            // Actualizar interfaz básica
             document.getElementById('progress-text').textContent = `${ex.id} / 60`;
             document.getElementById('ex-prompt').textContent = ex.prompt;
             document.getElementById('student-input').value = "";
             document.getElementById('student-input').focus();
             
-            // Ocultar paneles de retroalimentación o ayuda
             document.getElementById('feedback-panel').classList.add('translate-y-full');
             document.getElementById('help-panel').classList.add('hidden');
 
-            // Cargar imagen local dinámica desde tu carpeta "profesiones_recortadas"
+            // Cargar imagen local usando el sistema robusto de múltiples extensiones y carpeta real
             const imgEl = document.getElementById('ex-img');
-            const fallbackEl = document.getElementById('img-fallback-msg');
-            imgEl.src = `${FOLDER_NAME}/${ex.profession.name}.${IMG_EXTENSION}`;
-            
-            imgEl.onload = () => {
-                fallbackEl.classList.add('hidden');
-            };
-            imgEl.onerror = () => {
-                // Si la ruta falla, avisamos en el contenedor visual
-                fallbackEl.classList.remove('hidden');
-            };
+            loadWithFallbackExtensions(imgEl, 'profesiones_recortadas', ex.profession.name);
 
-            // Configurar vistas condicionales por sección
             if (activeTab === 'answers') {
                 document.getElementById('exercise-type-badge').classList.remove('hidden');
                 document.getElementById('exercise-type-badge').textContent = ex.isNegative ? "RESPUESTA NEGATIVA" : "RESPUESTA AFIRMATIVA";
                 document.getElementById('dictate-banner').classList.add('hidden');
             } else {
                 document.getElementById('exercise-type-badge').classList.add('hidden');
-                
-                // Mostrar banner de dictado preferente
                 if (ex.forceDictation) {
                     document.getElementById('dictate-banner').classList.remove('hidden');
                 } else {
@@ -484,7 +486,6 @@
             currentIndex = 0;
             score = { correct: 0, incorrect: 0 };
             
-            // Actualizar botones UI
             const btnAns = document.getElementById('btn-ans');
             const btnCre = document.getElementById('btn-cre');
 
@@ -503,7 +504,6 @@
             loadCurrentExercise();
         }
 
-        // Normalizar texto para comparaciones flexibles
         function cleanText(text) {
             return text.toLowerCase()
                        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?]/g,"")
@@ -520,7 +520,6 @@
             const cleanUser = cleanText(inputVal);
             const cleanExpected = cleanText(ex.expected);
 
-            // Verificación tolerante pero gramaticalmente precisa
             const isCorrect = cleanUser === cleanExpected;
 
             const feedbackPanel = document.getElementById('feedback-panel');
@@ -534,7 +533,6 @@
                 score.correct++;
                 document.getElementById('score-correct').textContent = score.correct;
                 
-                // Mostrar UI Correcta
                 iconContainer.className = "w-20 h-20 rounded-full flex items-center justify-center text-4xl mb-4 bg-emerald-950 text-emerald-400 border border-emerald-500/30";
                 iconContainer.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
                 titleEl.className = "text-2xl font-black mb-2 text-emerald-400";
@@ -547,14 +545,12 @@
                 attempts++;
                 
                 if (attempts < 2) {
-                    // Primer error: dar segunda oportunidad y activar ayudas
                     iconContainer.className = "w-20 h-20 rounded-full flex items-center justify-center text-4xl mb-4 bg-amber-950 text-amber-400 border border-amber-500/30";
                     iconContainer.innerHTML = '<i class="fa-solid fa-triangle-exclamation animate-bounce"></i>';
                     titleEl.className = "text-2xl font-black mb-2 text-amber-400";
                     titleEl.textContent = "Inténtalo de nuevo";
                     msgEl.textContent = "Revisa las contracciones, artículos o pronombres.";
                     
-                    // Activar panel de ayuda con el nombre de la profesión
                     if (activeTab === 'creation') {
                         document.getElementById('help-profession-name').textContent = ex.profession.name.replace('_', ' ');
                         document.getElementById('help-panel').classList.remove('hidden');
@@ -562,7 +558,6 @@
                     
                     feedbackPanel.classList.remove('translate-y-full');
                 } else {
-                    // Segundo error: registrar fallo y avanzar revelando respuesta
                     score.incorrect++;
                     document.getElementById('score-incorrect').textContent = score.incorrect;
 
@@ -579,14 +574,12 @@
             }
         }
 
-        // Pasar al siguiente ejercicio
         function nextExercise() {
             document.getElementById('feedback-panel').classList.add('translate-y-full');
             
-            // Avanzar o resetear al llegar a 60
             currentIndex++;
             if (currentIndex >= 60) {
-                showNotification(`¡Práctica completada con éxito! Respuestas correctas: ${score.correct}, Errores: ${score.incorrect}`, "success");
+                showNotification(`¡Práctica completada! Correctas: ${score.correct}, Errores: ${score.incorrect}`, "success");
                 currentIndex = 0;
                 score = { correct: 0, incorrect: 0 };
                 document.getElementById('score-correct').textContent = "0";
@@ -596,16 +589,14 @@
             loadCurrentExercise();
         }
 
-        // Bypass manual para dictados obligatorios
         function bypassDictation() {
             document.getElementById('dictate-banner').classList.add('hidden');
             document.getElementById('student-input').focus();
         }
 
-        // Iniciar reconocimiento de voz
         function startDictation() {
             if (!speechRecognition) {
-                showNotification("Tu navegador no soporta el reconocimiento de voz nativo de Google. Por favor, escribe tu respuesta.", "error");
+                showNotification("Tu navegador no soporta reconocimiento de voz.", "error");
                 return;
             }
             if (isListening) {
@@ -615,9 +606,6 @@
             }
         }
 
-        // --- SISTEMA DE SÍNTESIS DE VOZ DUAL (Google / Gemini) ---
-
-        // Generación de WAV desde datos binarios PCM16
         function rawMicrosToWav(rawBuffer, sampleRate) {
             const buffer = new ArrayBuffer(44 + rawBuffer.byteLength);
             const view = new DataView(buffer);
@@ -633,12 +621,12 @@
             writeString(view, 8, 'WAVE');
             writeString(view, 12, 'fmt ');
             view.setUint32(16, 16, true);
-            view.setUint16(20, 1, true); // PCM - Entero
-            view.setUint16(22, 1, true); // Mono
+            view.setUint16(20, 1, true); 
+            view.setUint16(22, 1, true); 
             view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * 2, true); // Byte rate
-            view.setUint16(32, 2, true); // Block align
-            view.setUint16(34, 16, true); // Bits por muestra
+            view.setUint32(28, sampleRate * 2, true); 
+            view.setUint16(32, 2, true); 
+            view.setUint16(34, 16, true); 
             writeString(view, 36, 'data');
             view.setUint32(40, rawBuffer.byteLength, true);
 
@@ -649,7 +637,6 @@
             return new Blob([buffer], { type: 'audio/wav' });
         }
 
-        // Llamar a Gemini TTS API
         async function speakWithGemini(text) {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${geminiApiKey}`;
             const payload = {
@@ -666,7 +653,6 @@
                 }
             };
 
-            // Implementación de reintentos exponencial
             let delay = 1000;
             for (let i = 0; i < 5; i++) {
                 try {
@@ -683,7 +669,6 @@
                     
                     if (!base64Audio) throw new Error("No audio data");
 
-                    // Decodificar Base64 a PCM
                     const binaryString = atob(base64Audio);
                     const len = binaryString.length;
                     const bytes = new Uint8Array(len);
@@ -691,7 +676,6 @@
                         bytes[j] = binaryString.charCodeAt(j);
                     }
 
-                    // Convertir PCM16 a WAV (Gemini TTS devuelve PCM a 24000Hz por defecto)
                     const wavBlob = rawMicrosToWav(bytes.buffer, 24000);
                     const audioUrl = URL.createObjectURL(wavBlob);
                     const audio = new Audio(audioUrl);
@@ -700,7 +684,7 @@
 
                 } catch (err) {
                     if (i === 4) {
-                        console.error("Gemini TTS falló después de 5 intentos. Usando Google TTS.");
+                        console.error("Gemini TTS falló. Usando Google TTS.");
                         speakWithGoogle(text);
                     }
                     await new Promise(resolve => setTimeout(resolve, delay));
@@ -709,18 +693,16 @@
             }
         }
 
-        // Llamada a Google TTS estándar del Navegador
         function speakWithGoogle(text) {
             if ('speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'en-US';
                 window.speechSynthesis.speak(utterance);
             } else {
-                showNotification("Soporte de audio no compatible en este dispositivo.", "error");
+                showNotification("Soporte de audio no compatible.", "error");
             }
         }
 
-        // Detonar reproducción según configuración
         function speakCurrentText() {
             const textToSpeak = exercises[currentIndex].audioGuide;
             if (geminiApiKey) {
@@ -743,22 +725,21 @@
             geminiApiKey = document.getElementById('gemini-key-input').value.trim();
             geminiVoice = document.getElementById('gemini-voice-select').value;
             closeSettings();
-            showNotification("Configuración de Gemini guardada correctamente.", "success");
+            showNotification("Configuración de voz premium actualizada.", "success");
         }
 
         function testGeminiVoice() {
             const key = document.getElementById('gemini-key-input').value.trim();
             const voice = document.getElementById('gemini-voice-select').value;
             if (!key) {
-                showNotification("Debes ingresar tu API Key de Gemini para realizar la prueba.", "error");
+                showNotification("Por favor, ingresa tu API Key.", "error");
                 return;
             }
             geminiApiKey = key;
             geminiVoice = voice;
-            speakWithGemini("Hello student! Let's practice English together.");
+            speakWithGemini("Hello! This is Gemini Voice speaking.");
         }
 
-        // Carga inicial
         window.onload = () => {
             generateExercises();
             loadCurrentExercise();
