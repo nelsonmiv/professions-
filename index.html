@@ -7,7 +7,7 @@
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Google Fonts & FontAwesome Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght=300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
@@ -17,9 +17,23 @@
             animation: pulse 1.5s infinite;
         }
         @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+            0 { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
             70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
             100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        }
+        /* Custom Scrollbar for grammar manager */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #475569;
         }
     </style>
 </head>
@@ -54,8 +68,8 @@
                     <i class="fa-solid fa-cloud-arrow-up text-emerald-400"></i> Auto-guardado
                 </span>
                 <button onclick="openSettings()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 border border-slate-700 transition w-full sm:w-auto justify-center">
-                    <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
-                    <span>Gemini Voices</span>
+                    <i class="fa-solid fa-gears text-indigo-400"></i>
+                    <span>Configuración</span>
                 </button>
             </div>
         </div>
@@ -174,55 +188,79 @@
         </div>
     </main>
 
-    <!-- SETTINGS / GEMINI CONFIG DIALOG -->
+    <!-- SETTINGS / DIALOGS -->
     <div id="settings-dialog" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 hidden">
-        <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
-            <button onclick="closeSettings()" class="absolute right-4 top-4 text-slate-400 hover:text-white transition">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-3xl p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
+            <button onclick="closeSettings()" class="absolute right-4 top-4 text-slate-400 hover:text-white transition z-10">
                 <i class="fa-solid fa-xmark text-lg"></i>
             </button>
             
-            <div class="flex items-center gap-3 mb-4">
+            <div class="flex items-center gap-3 mb-6">
                 <div class="bg-indigo-600/20 text-indigo-400 p-2 rounded-xl">
-                    <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
+                    <i class="fa-solid fa-gears text-lg"></i>
                 </div>
-                <h2 class="text-xl font-extrabold text-slate-100">Voces Gemini Premium</h2>
-            </div>
-            
-            <p class="text-sm text-slate-400 mb-6">
-                Activa la síntesis de voz de Gemini de alta fidelidad. Consigue tu API Key gratuita en 
-                <a href="https://aistudio.google.com/" target="_blank" class="text-indigo-400 hover:underline inline-flex items-center gap-1 font-bold">
-                    Google AI Studio <i class="fa-solid fa-external-link text-xs"></i>
-                </a>.
-            </p>
-
-            <div class="space-y-4 mb-6">
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Gemini API Key</label>
-                    <input type="password" id="gemini-key-input" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 outline-none focus:border-indigo-500 transition text-sm" placeholder="AIzaSy...">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Selección de Voz</label>
-                    <select id="gemini-voice-select" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 outline-none focus:border-indigo-500 transition text-sm">
-                        <option value="Kore">Kore (Voz Estándar)</option>
-                        <option value="Zephyr">Zephyr (Femenina / Enérgica)</option>
-                        <option value="Puck">Puck (Masculina / Amistosa)</option>
-                        <option value="Fenrir">Fenrir (Masculina / Formal)</option>
-                        <option value="Leda">Leda (Femenina / Suave)</option>
-                        <option value="Orus">Orus (Masculina / Confiada)</option>
-                        <option value="Aoede">Aoede (Femenina / Clara)</option>
-                    </select>
-                </div>
+                <h2 class="text-xl font-extrabold text-slate-100">Ajustes de la Aplicación</h2>
             </div>
 
-            <div class="flex gap-3">
-                <button onclick="saveGeminiSettings()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition">
-                    Guardar Configuración
+            <!-- TABS DENTRO DE CONFIGURACIÓN -->
+            <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 mb-6">
+                <button onclick="switchSettingsTab('settings-gemini')" id="tab-btn-gemini" class="flex-1 py-2 rounded-lg text-sm font-bold transition bg-indigo-600 text-white">
+                    <i class="fa-solid fa-wand-magic-sparkles mr-1.5"></i>Voces Premium
                 </button>
-                <button onclick="testGeminiVoice()" class="px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-200 transition">
-                    <i class="fa-solid fa-play"></i> Probar
+                <button onclick="switchSettingsTab('settings-grammar')" id="tab-btn-grammar" class="flex-1 py-2 rounded-lg text-sm font-bold transition text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-venus-mars mr-1.5"></i>Gramática y Pronombres
                 </button>
             </div>
+
+            <!-- CONTENIDO TAB: GEMINI -->
+            <div id="settings-gemini" class="space-y-4 flex-1 overflow-y-auto pr-1">
+                <p class="text-sm text-slate-400">
+                    Activa la síntesis de voz de Gemini de alta fidelidad. Consigue tu API Key gratuita en 
+                    <a href="https://aistudio.google.com/" target="_blank" class="text-indigo-400 hover:underline inline-flex items-center gap-1 font-bold">
+                        Google AI Studio <i class="fa-solid fa-external-link text-xs"></i>
+                    </a>.
+                </p>
+
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Gemini API Key</label>
+                        <input type="password" id="gemini-key-input" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 outline-none focus:border-indigo-500 transition text-sm" placeholder="AIzaSy...">
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Selección de Voz</label>
+                        <select id="gemini-voice-select" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 outline-none focus:border-indigo-500 transition text-sm">
+                            <option value="Kore">Kore (Voz Estándar)</option>
+                            <option value="Zephyr">Zephyr (Femenina / Enérgica)</option>
+                            <option value="Puck">Puck (Masculina / Amistosa)</option>
+                            <option value="Fenrir">Fenrir (Masculina / Formal)</option>
+                            <option value="Leda">Leda (Femenina / Suave)</option>
+                            <option value="Orus">Orus (Masculina / Confiada)</option>
+                            <option value="Aoede">Aoede (Femenina / Clara)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button onclick="saveGeminiSettingsOnly()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition">
+                        Guardar Configuración
+                    </button>
+                    <button onclick="testGeminiVoice()" class="px-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-slate-200 transition">
+                        <i class="fa-solid fa-play"></i> Probar
+                    </button>
+                </div>
+            </div>
+
+            <!-- CONTENIDO TAB: GRAMÁTICA Y PRONOMBRES -->
+            <div id="settings-grammar" class="hidden flex flex-col flex-1 overflow-hidden">
+                <p class="text-sm text-slate-400 mb-4">
+                    Revisa las 40 profesiones locales. Puedes alternar el pronombre (He / She) y el artículo correcto (A / An) para ajustar la concordancia de tus imágenes.
+                </p>
+                <div id="grammar-editor-list" class="space-y-2 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+                    <!-- Dinámico -->
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -239,11 +277,11 @@
         // CONFIGURACIÓN DE IMÁGENES LOCALES
         const IMG_EXTENSION = 'png'; 
 
-        // LISTA EXACTA DE TUS 40 PROFESIONES
-        const PROFESSIONS_LIST = [
+        // LISTA EXACTA DE TUS 40 PROFESIONES CON GÉNEROS REVISADOS
+        let PROFESSIONS_LIST = [
             { name: "actor", pronoun: "he", article: "an" },
             { name: "architect", pronoun: "he", article: "an" },
-            { name: "artist", pronoun: "she", article: "an" },
+            { name: "artist", pronoun: "he", article: "an" }, // CORREGIDO: "artist" ahora es "he" (masculino en la imagen)
             { name: "astronaut", pronoun: "he", article: "an" },
             { name: "athlete", pronoun: "she", article: "an" },
             { name: "baker", pronoun: "he", article: "a" },
@@ -264,7 +302,7 @@
             { name: "geologist", pronoun: "he", article: "a" },
             { name: "graphic_designer", pronoun: "she", article: "a" },
             { name: "journalist", pronoun: "she", article: "a" },
-            { name: "lawyer", pronoun: "he", article: "a" },
+            { name: "lawyer", pronoun: "she", article: "a" },
             { name: "librarian", pronoun: "she", article: "a" },
             { name: "mechanic", pronoun: "he", article: "a" },
             { name: "musician", pronoun: "she", article: "a" },
@@ -293,6 +331,7 @@
         let attempts = 0; 
         let geminiApiKey = "";
         let geminiVoice = "Kore";
+        let currentSettingsTab = 'settings-gemini';
 
         // Extensiones a intentar secuencialmente para evitar fallos por mayúsculas/minúsculas en GitHub Pages
         const EXTENSIONS_TO_TRY = ['png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'webp'];
@@ -347,7 +386,8 @@
                 score: score,
                 geminiApiKey: geminiApiKey,
                 geminiVoice: geminiVoice,
-                activeTab: activeTab
+                activeTab: activeTab,
+                customProfessions: PROFESSIONS_LIST // Guardamos también las customizaciones de pronombres
             };
 
             // 1. Guardar siempre de forma segura en local (IndexedDB)
@@ -412,7 +452,7 @@
             tryNext();
         }
 
-        // Notificaciones Flotantes Interactivos (Reemplaza alert())
+        // Notificaciones Flotantes Interactivas (Reemplazan alert())
         function showNotification(message, type = 'info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -827,16 +867,77 @@
             }
         }
 
-        // --- MANEJO DE CONFIGURACIÓN Y MODAL ---
+        // --- MANEJO DE CONFIGURACIÓN, MODAL Y TABS ---
         function openSettings() {
             document.getElementById('settings-dialog').classList.remove('hidden');
+            renderGrammarEditor(); // Renderizar panel de gramática con datos frescos
         }
 
         function closeSettings() {
             document.getElementById('settings-dialog').classList.add('hidden');
         }
 
-        function saveGeminiSettings() {
+        function switchSettingsTab(tabId) {
+            currentSettingsTab = tabId;
+            document.getElementById('settings-gemini').classList.add('hidden');
+            document.getElementById('settings-grammar').classList.add('hidden');
+            document.getElementById('tab-btn-gemini').className = "flex-1 py-2 rounded-lg text-sm font-bold transition text-slate-400 hover:text-white";
+            document.getElementById('tab-btn-grammar').className = "flex-1 py-2 rounded-lg text-sm font-bold transition text-slate-400 hover:text-white";
+            
+            document.getElementById(tabId).classList.remove('hidden');
+            if (tabId === 'settings-gemini') {
+                document.getElementById('tab-btn-gemini').className = "flex-1 py-2 rounded-lg text-sm font-bold transition bg-indigo-600 text-white shadow";
+            } else {
+                document.getElementById('tab-btn-grammar').className = "flex-1 py-2 rounded-lg text-sm font-bold transition bg-indigo-600 text-white shadow";
+                renderGrammarEditor();
+            }
+        }
+
+        // Renderizar dinámicamente la lista de profesiones en la pestaña de configuración
+        function renderGrammarEditor() {
+            const container = document.getElementById('grammar-editor-list');
+            container.innerHTML = '';
+            
+            PROFESSIONS_LIST.forEach((prof, index) => {
+                const row = document.createElement('div');
+                row.className = "flex items-center justify-between p-2 bg-slate-950/60 border border-slate-800/80 rounded-xl gap-4";
+                
+                row.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <img src="./profesiones_recortadas/${prof.name}.${IMG_EXTENSION}" alt="" class="w-8 h-8 rounded-lg object-cover bg-slate-900 border border-slate-800" onerror="this.src='https://placehold.co/40x40/1e293b/cbd5e1?text=?'">
+                        <span class="text-xs font-bold capitalize text-slate-200">${prof.name.replace('_', ' ')}</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <!-- Selector de Pronombre -->
+                        <div class="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[10px] font-extrabold">
+                            <button onclick="updateProfGrammar(${index}, 'pronoun', 'he')" class="px-2 py-1 rounded-md transition ${prof.pronoun === 'he' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">He</button>
+                            <button onclick="updateProfGrammar(${index}, 'pronoun', 'she')" class="px-2 py-1 rounded-md transition ${prof.pronoun === 'she' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">She</button>
+                        </div>
+                        <!-- Selector de Artículo -->
+                        <div class="flex bg-slate-900 p-0.5 rounded-lg border border-slate-800 text-[10px] font-extrabold">
+                            <button onclick="updateProfGrammar(${index}, 'article', 'a')" class="px-2 py-1 rounded-md transition ${prof.article === 'a' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">A</button>
+                            <button onclick="updateProfGrammar(${index}, 'article', 'an')" class="px-2 py-1 rounded-md transition ${prof.article === 'an' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'}">An</button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // Modificar pronombre o artículo en tiempo real desde los botones
+        function updateProfGrammar(index, field, value) {
+            PROFESSIONS_LIST[index][field] = value;
+            renderGrammarEditor(); // Re-renderizar lista
+            
+            // Re-generar pools para que la concordancia impacte inmediatamente
+            generateExercises();
+            loadCurrentExercise();
+            
+            showNotification(`Actualizado ${PROFESSIONS_LIST[index].name} -> ${field}: ${value}`, "success");
+            saveAppState();
+        }
+
+        function saveGeminiSettingsOnly() {
             geminiApiKey = document.getElementById('gemini-key-input').value.trim();
             geminiVoice = document.getElementById('gemini-voice-select').value;
             closeSettings();
@@ -870,6 +971,11 @@
                 document.getElementById('gemini-voice-select').value = geminiVoice;
             }
             if (savedState.activeTab !== undefined) activeTab = savedState.activeTab;
+            
+            // Cargar pronombres/artículos customizados si existen guardados
+            if (savedState.customProfessions !== undefined) {
+                PROFESSIONS_LIST = savedState.customProfessions;
+            }
 
             // Actualizar interfaz con datos restaurados
             document.getElementById('score-correct').textContent = score.correct;
