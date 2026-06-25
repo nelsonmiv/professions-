@@ -48,11 +48,16 @@
                 </button>
             </div>
 
-            <!-- AJUSTES GEMINI -->
-            <button onclick="openSettings()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 border border-slate-700 transition w-full sm:w-auto justify-center">
-                <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
-                <span>Gemini Voices</span>
-            </button>
+            <!-- AJUSTES GEMINI Y ESTADO DE GUARDADO -->
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <span id="save-status" class="text-xs text-slate-400 bg-slate-950 px-2.5 py-2 rounded-xl border border-slate-800/80 hidden sm:inline-flex items-center gap-1.5 font-medium">
+                    <i class="fa-solid fa-cloud-arrow-up text-emerald-400"></i> Auto-guardado
+                </span>
+                <button onclick="openSettings()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 border border-slate-700 transition w-full sm:w-auto justify-center">
+                    <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
+                    <span>Gemini Voices</span>
+                </button>
+            </div>
         </div>
     </header>
 
@@ -84,8 +89,8 @@
                     <img id="ex-img" src="" alt="Profession" class="w-full h-full object-cover transition duration-300 group-hover:scale-105">
                     <div id="img-fallback-msg" class="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-4 text-center hidden">
                         <i class="fa-solid fa-triangle-exclamation text-amber-500 text-4xl mb-2"></i>
-                        <p class="text-sm text-slate-200 font-bold">No se pudo cargar el archivo local</p>
-                        <p class="text-xs text-slate-400 mt-1">Verifica el nombre en "profesiones_recortadas"</p>
+                        <p class="text-sm text-slate-200 font-bold">Cargando recurso local...</p>
+                        <p class="text-xs text-slate-400 mt-1 font-medium">Verifica la subcarpeta "profesiones_recortadas"</p>
                     </div>
                 </div>
 
@@ -139,7 +144,7 @@
                                 <span>Verificar Respuesta</span>
                                 <i class="fa-solid fa-circle-check"></i>
                             </button>
-                            <button onclick="startDictation()" id="btn-mic" class="px-5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl transition flex items-center justify-center relative">
+                            <button onclick="startDictation()" id="btn-mic" class="px-5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-xl transition flex items-center justify-center relative animate-none">
                                 <i class="fa-solid fa-microphone text-lg"></i>
                             </button>
                         </div>
@@ -231,7 +236,10 @@
 
     <!-- LOGIC SCRIPT -->
     <script>
-        // LISTA EXACTA DE TUS 40 PROFESIONES 
+        // CONFIGURACIÓN DE IMÁGENES LOCALES
+        const IMG_EXTENSION = 'png'; 
+
+        // LISTA EXACTA DE TUS 40 PROFESIONES
         const PROFESSIONS_LIST = [
             { name: "actor", pronoun: "he", article: "an" },
             { name: "architect", pronoun: "he", article: "an" },
@@ -276,7 +284,7 @@
         ];
 
         // Estado de la aplicación
-        let activeTab = 'answers'; // 'answers' o 'creation'
+        let activeTab = 'answers'; 
         let exercises = [];
         let currentIndex = 0;
         let score = { correct: 0, incorrect: 0 };
@@ -286,18 +294,101 @@
         let geminiApiKey = "";
         let geminiVoice = "Kore";
 
-        // Extensiones a intentar de manera secuencial para prevenir bloqueos de Linux/GitHub Pages
+        // Extensiones a intentar secuencialmente para evitar fallos por mayúsculas/minúsculas en GitHub Pages
         const EXTENSIONS_TO_TRY = ['png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'webp'];
 
+        // BASE DE DATOS LOCAL SEGURA (IndexedDB) - Evitando por completo localStorage
+        const DB_NAME = "ProfessionMasterDB";
+        const STORE_NAME = "state";
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    db.createObjectStore(STORE_NAME);
+                };
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        function saveLocalProgress(state) {
+            return openDB().then(db => {
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, "readwrite");
+                    const store = tx.objectStore(STORE_NAME);
+                    store.put(state, "current_state");
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                });
+            }).catch(err => console.error("Error al guardar en IndexedDB:", err));
+        }
+
+        function loadLocalProgress() {
+            return openDB().then(db => {
+                return new Promise((resolve, reject) => {
+                    const tx = db.transaction(STORE_NAME, "readonly");
+                    const store = tx.objectStore(STORE_NAME);
+                    const req = store.get("current_state");
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+            }).catch(err => {
+                console.error("Error al cargar desde IndexedDB:", err);
+                return null;
+            });
+        }
+
+        // Sistema de Guardado Inteligente Global (Firestore o Local)
+        async function saveAppState() {
+            const stateToSave = {
+                currentIndex: currentIndex,
+                score: score,
+                geminiApiKey: geminiApiKey,
+                geminiVoice: geminiVoice,
+                activeTab: activeTab
+            };
+
+            // 1. Guardar siempre de forma segura en local (IndexedDB)
+            await saveLocalProgress(stateToSave);
+
+            // 2. Si Firebase está activo en este navegador, guardar en la nube
+            if (window.firebaseActive && window.firebaseAuth && window.firebaseAuth.currentUser) {
+                const user = window.firebaseAuth.currentUser;
+                const appId = window.firebaseAppId;
+                const db = window.firebaseDb;
+                try {
+                    const docRef = window.firebaseDoc(db, 'artifacts', appId, 'users', user.uid, 'userData', 'progress');
+                    await window.firebaseSetDoc(docRef, stateToSave);
+                    showStatusIndicator(true);
+                } catch (err) {
+                    console.error("Error guardando en Firestore:", err);
+                }
+            } else {
+                showStatusIndicator(false);
+            }
+        }
+
+        function showStatusIndicator(isCloud) {
+            const el = document.getElementById('save-status');
+            el.classList.remove('hidden');
+            if (isCloud) {
+                el.innerHTML = `<i class="fa-solid fa-cloud-arrow-up text-emerald-400"></i> Nube Guardada`;
+            } else {
+                el.innerHTML = `<i class="fa-solid fa-hard-drive text-indigo-400"></i> Local Guardado`;
+            }
+        }
+
+        // Cargador iterativo de imágenes de contingencia
         function loadWithFallbackExtensions(imgElement, folder, baseName) {
             const fallbackEl = document.getElementById('img-fallback-msg');
-            fallbackEl.classList.add('hidden'); // Ocultar mensaje por defecto
+            fallbackEl.classList.add('hidden'); 
 
             let index = 0;
 
             function tryNext() {
                 if (index >= EXTENSIONS_TO_TRY.length) {
-                    // Si se agotaron las extensiones, mostrar error y usar placeholder de respaldo visual
                     fallbackEl.classList.remove('hidden');
                     imgElement.src = `https://placehold.co/500x500/1e293b/cbd5e1?text=${baseName.toUpperCase().replace('_', '+')}`;
                     return;
@@ -321,7 +412,7 @@
             tryNext();
         }
 
-        // Sistema de notificaciones no obstructivo interactivo
+        // Notificaciones Flotantes Interactivos (Reemplaza alert())
         function showNotification(message, type = 'info') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -329,13 +420,13 @@
             
             if (type === 'success') {
                 toast.className += ' bg-emerald-950/90 text-emerald-300 border-emerald-500/30';
-                toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i><span>${message}</span>`;
+                toast.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400 text-lg"></i><span>${message}</span>`;
             } else if (type === 'error') {
                 toast.className += ' bg-rose-950/90 text-rose-300 border-rose-500/30';
-                toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-400"></i><span>${message}</span>`;
+                toast.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-rose-400 text-lg"></i><span>${message}</span>`;
             } else {
                 toast.className += ' bg-slate-800/90 text-slate-100 border-slate-700/30';
-                toast.innerHTML = `<i class="fa-solid fa-info-circle text-indigo-400"></i><span>${message}</span>`;
+                toast.innerHTML = `<i class="fa-solid fa-info-circle text-indigo-400 text-lg"></i><span>${message}</span>`;
             }
             
             container.appendChild(toast);
@@ -343,10 +434,10 @@
             setTimeout(() => {
                 toast.classList.add('translate-y-2', 'opacity-0');
                 setTimeout(() => toast.remove(), 300);
-            }, 4000);
+            }, 5000);
         }
 
-        // Inicializar reconocimiento de voz
+        // Configuración de Reconocimiento de Voz
         if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
             const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
             speechRecognition = new SpeechRec();
@@ -359,6 +450,7 @@
                 const micBtn = document.getElementById('btn-mic');
                 micBtn.classList.add('mic-pulse', 'bg-indigo-600/30', 'text-indigo-400');
                 document.getElementById('input-type-indicator').innerHTML = '<i class="fa-solid fa-microphone-lines text-indigo-400 mic-pulse"></i>';
+                showNotification("Escuchando... ¡Habla ahora en inglés!", "info");
             };
 
             speechRecognition.onend = () => {
@@ -371,12 +463,23 @@
             speechRecognition.onresult = (event) => {
                 const text = event.results[0][0].transcript;
                 document.getElementById('student-input').value = text;
+                showNotification("Voz transcrita correctamente.", "success");
             };
 
             speechRecognition.onerror = (e) => {
                 console.error("Speech Recognition Error:", e);
                 isListening = false;
-                showNotification("Ocurrió un problema con el micrófono. Inténtalo de nuevo.", "error");
+                
+                let errorMessage = "No se pudo activar el micrófono.";
+                if (e.error === 'not-allowed') {
+                    errorMessage = "Permiso denegado. Por favor, habilita el micrófono en los ajustes de tu navegador.";
+                } else if (e.error === 'no-speech') {
+                    errorMessage = "No se detectó voz. Prueba hablando más cerca del micrófono.";
+                } else if (e.error === 'network') {
+                    errorMessage = "Error de red. El dictado de Google requiere conexión a Internet.";
+                }
+                
+                showNotification(errorMessage, "error");
             };
         }
 
@@ -389,7 +492,6 @@
                 const baseProf = shuffled[i % shuffled.length];
                 
                 if (activeTab === 'answers') {
-                    // SECCIÓN RESPUESTAS: 70% negativas, 30% positivas
                     const isNegative = i < 42; 
                     let questionProfession = baseProf;
                     
@@ -424,7 +526,6 @@
                     });
 
                 } else {
-                    // SECCIÓN CREACIÓN DE PREGUNTAS: 70% dictado preferencial
                     const forceDictation = i < 42; 
                     const pr = baseProf.pronoun;
                     const art = baseProf.article;
@@ -461,7 +562,6 @@
             document.getElementById('feedback-panel').classList.add('translate-y-full');
             document.getElementById('help-panel').classList.add('hidden');
 
-            // Cargar imagen local usando el sistema robusto de múltiples extensiones y carpeta real
             const imgEl = document.getElementById('ex-img');
             loadWithFallbackExtensions(imgEl, './profesiones_recortadas', ex.profession.name);
 
@@ -489,11 +589,11 @@
             const btnCre = document.getElementById('btn-cre');
 
             if (tab === 'answers') {
-                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 bg-indigo-600 text-white shadow";
-                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 text-slate-400 hover:text-white";
+                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 bg-indigo-600 text-white shadow";
+                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 text-slate-400 hover:text-white";
             } else {
-                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 text-slate-400 hover:text-white";
-                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 bg-indigo-600 text-white shadow";
+                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 text-slate-400 hover:text-white";
+                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 bg-indigo-600 text-white shadow";
             }
 
             document.getElementById('score-correct').textContent = "0";
@@ -501,6 +601,7 @@
 
             generateExercises();
             loadCurrentExercise();
+            saveAppState();
         }
 
         function cleanText(text) {
@@ -513,7 +614,10 @@
         // Validar respuesta del estudiante
         function checkAnswer() {
             const inputVal = document.getElementById('student-input').value.trim();
-            if (!inputVal) return;
+            if (!inputVal) {
+                showNotification("Por favor, escribe o dicta una respuesta antes de verificar.", "error");
+                return;
+            }
 
             const ex = exercises[currentIndex];
             const cleanUser = cleanText(inputVal);
@@ -527,6 +631,10 @@
             const msgEl = document.getElementById('feedback-message');
             const detailsEl = document.getElementById('feedback-details');
             const expectedAnswerEl = document.getElementById('expected-answer');
+
+            if (isListening) {
+                speechRecognition.stop(); 
+            }
 
             if (isCorrect) {
                 score.correct++;
@@ -571,6 +679,7 @@
                     feedbackPanel.classList.remove('translate-y-full');
                 }
             }
+            saveAppState();
         }
 
         function nextExercise() {
@@ -586,6 +695,7 @@
                 generateExercises();
             }
             loadCurrentExercise();
+            saveAppState();
         }
 
         function bypassDictation() {
@@ -595,13 +705,19 @@
 
         function startDictation() {
             if (!speechRecognition) {
-                showNotification("Tu navegador no soporta reconocimiento de voz.", "error");
+                showNotification("Tu navegador o dispositivo no soporta el reconocimiento de voz de Google. Por favor, escribe tu respuesta.", "error");
                 return;
             }
             if (isListening) {
                 speechRecognition.stop();
             } else {
-                speechRecognition.start();
+                try {
+                    speechRecognition.start();
+                } catch(e) {
+                    console.error("No se pudo iniciar SpeechRecognition:", e);
+                    speechRecognition.stop();
+                    setTimeout(() => speechRecognition.start(), 300);
+                }
             }
         }
 
@@ -725,6 +841,7 @@
             geminiVoice = document.getElementById('gemini-voice-select').value;
             closeSettings();
             showNotification("Configuración de voz premium actualizada.", "success");
+            saveAppState();
         }
 
         function testGeminiVoice() {
@@ -739,10 +856,129 @@
             speakWithGemini("Hello! This is Gemini Voice speaking.");
         }
 
-        window.onload = () => {
+        // Restaurar estado de la aplicación desde datos salvados
+        function restoreAppState(savedState) {
+            if (!savedState) return;
+            if (savedState.currentIndex !== undefined) currentIndex = savedState.currentIndex;
+            if (savedState.score !== undefined) score = savedState.score;
+            if (savedState.geminiApiKey !== undefined) {
+                geminiApiKey = savedState.geminiApiKey;
+                document.getElementById('gemini-key-input').value = geminiApiKey;
+            }
+            if (savedState.geminiVoice !== undefined) {
+                geminiVoice = savedState.geminiVoice;
+                document.getElementById('gemini-voice-select').value = geminiVoice;
+            }
+            if (savedState.activeTab !== undefined) activeTab = savedState.activeTab;
+
+            // Actualizar interfaz con datos restaurados
+            document.getElementById('score-correct').textContent = score.correct;
+            document.getElementById('score-incorrect').textContent = score.incorrect;
+            
+            const btnAns = document.getElementById('btn-ans');
+            const btnCre = document.getElementById('btn-cre');
+            if (activeTab === 'answers') {
+                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 bg-indigo-600 text-white shadow";
+                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 text-slate-400 hover:text-white";
+            } else {
+                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 text-slate-400 hover:text-white";
+                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 bg-indigo-600 text-white shadow";
+            }
+        }
+
+        // Iniciar flujo local estándar
+        async function runLocalInit() {
+            const localData = await loadLocalProgress();
+            if (localData) {
+                restoreAppState(localData);
+                showNotification("Progreso de aprendizaje recuperado desde tu dispositivo.", "success");
+            }
             generateExercises();
             loadCurrentExercise();
+            showStatusIndicator(false);
+        }
+
+        window.onLocalLoaderInit = function() {
+            runLocalInit();
         };
+
+        window.onFirebaseDataLoaded = function(cloudData) {
+            restoreAppState(cloudData);
+            showNotification("Sincronizado con tu progreso en la nube.", "success");
+            generateExercises();
+            loadCurrentExercise();
+            showStatusIndicator(true);
+        };
+
+        window.onFirebaseNoData = async function() {
+            // Si en la nube no hay nada, cargar datos locales de IndexedDB como respaldo
+            const localData = await loadLocalProgress();
+            if (localData) {
+                restoreAppState(localData);
+                saveAppState(); // Guardar lo local en la nube por primera vez
+            }
+            generateExercises();
+            loadCurrentExercise();
+            showStatusIndicator(true);
+        };
+    </script>
+
+    <!-- FIREBASE MODULE LOADER -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Obtener variables inyectadas del entorno o nulas
+        const appId = typeof __app_id !== 'undefined' ? __app_id : null;
+        const firebaseConfigStr = typeof __firebase_config !== 'undefined' ? __firebase_config : null;
+        const customAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Compartir funciones necesarias con el entorno global de forma segura
+        window.firebaseDoc = doc;
+        window.firebaseSetDoc = setDoc;
+
+        if (firebaseConfigStr && appId) {
+            try {
+                const firebaseConfig = JSON.parse(firebaseConfigStr);
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+                const db = getFirestore(app);
+
+                window.firebaseActive = true;
+                window.firebaseDb = db;
+                window.firebaseAuth = auth;
+                window.firebaseAppId = appId;
+
+                // Flujo de autenticación según la inyección
+                const authPromise = customAuthToken 
+                    ? signInWithCustomToken(auth, customAuthToken) 
+                    : signInAnonymously(auth);
+
+                authPromise.then(async (userCredential) => {
+                    const user = userCredential.user;
+                    if (!user) return;
+                    
+                    // Ruta estricta de regla 1: /artifacts/{appId}/users/{userId}/{collectionName}
+                    const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'userData', 'progress');
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) {
+                        window.onFirebaseDataLoaded(docSnap.data());
+                    } else {
+                        window.onFirebaseNoData();
+                    }
+                }).catch(err => {
+                    console.error("Firebase Auth Error:", err);
+                    window.onLocalLoaderInit();
+                });
+            } catch(e) {
+                console.error("Error al inicializar Firebase:", e);
+                window.onLocalLoaderInit();
+            }
+        } else {
+            // No hay Firebase inyectado (por ejemplo, ejecutándose de forma aislada en GitHub Pages)
+            window.onLocalLoaderInit();
+        }
     </script>
 </body>
 </html>
