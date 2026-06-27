@@ -82,10 +82,16 @@
                 <!-- Imagen del Ejercicio -->
                 <div class="relative bg-slate-900 rounded-2xl aspect-square flex items-center justify-center overflow-hidden border border-slate-800 shadow-inner group">
                     <img id="ex-img" src="" alt="Profession" class="w-full h-full object-cover transition duration-300 group-hover:scale-105">
-                    <div id="img-fallback-msg" class="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-4 text-center hidden">
-                        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-4xl mb-2"></i>
-                        <p class="text-sm text-slate-200 font-bold">No se pudo cargar el archivo local</p>
-                        <p class="text-xs text-slate-400 mt-1">Verifica el nombre en "profesiones_recortadas"</p>
+                    
+                    <!-- Panel Fallback de Error Adaptativo con Diagnóstico de Rutas -->
+                    <div id="img-fallback-msg" class="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-4 text-center hidden overflow-y-auto">
+                        <i class="fa-solid fa-triangle-exclamation text-amber-500 text-3xl mb-2"></i>
+                        <p class="text-xs text-slate-200 font-bold">Error de Carga en GitHub Pages</p>
+                        <p class="text-[10px] text-slate-400 mb-2">No se encontró el archivo. Rutas intentadas:</p>
+                        <div id="diagnostic-paths" class="text-left w-full bg-slate-900 p-2 rounded-lg border border-slate-800 text-[9px] font-mono text-rose-400 space-y-1 max-h-36 overflow-y-auto">
+                            <!-- Aquí se inyectan las rutas intentadas -->
+                        </div>
+                        <p class="text-[9px] text-slate-500 mt-2">Asegúrate de que los archivos estén en la raíz o que el nombre de tu carpeta coincida exactamente.</p>
                     </div>
                 </div>
 
@@ -329,33 +335,48 @@
         let geminiApiKey = "";
         let geminiVoice = "Kore";
 
-        // Extensiones a intentar de manera secuencial para prevenir bloqueos de Linux/GitHub Pages
-        const EXTENSIONS_TO_TRY = ['png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'webp'];
+        // Extensiones y carpetas alternativas para buscar de forma exhaustiva en GitHub
+        const EXTENSIONS_TO_TRY = ['png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'webp', 'WEBP'];
+        const FOLDERS_TO_TRY = ['./profesiones_recortadas', 'profesiones_recortadas', './Profesiones_recortadas', 'Profesiones_recortadas'];
 
-        function loadWithFallbackExtensions(imgElement, folder, baseName) {
+        function loadWithFallbackExtensions(imgElement, baseName) {
             const fallbackEl = document.getElementById('img-fallback-msg');
+            const diagnosticContainer = document.getElementById('diagnostic-paths');
             fallbackEl.classList.add('hidden'); // Ocultar mensaje por defecto
+            diagnosticContainer.innerHTML = ''; // Limpiar consola
 
-            let index = 0;
+            let folderIndex = 0;
+            let extIndex = 0;
+            let pathsTried = [];
 
             function tryNext() {
-                if (index >= EXTENSIONS_TO_TRY.length) {
-                    // Si se agotaron las extensiones, mostrar error y usar placeholder de respaldo visual
+                if (folderIndex >= FOLDERS_TO_TRY.length) {
+                    // Si se agotaron todas las combinaciones de carpetas y extensiones, mostrar error visual de diagnóstico
                     fallbackEl.classList.remove('hidden');
                     imgElement.src = `https://placehold.co/500x500/1e293b/cbd5e1?text=${baseName.toUpperCase().replace('_', '+')}`;
+                    
+                    // Renderizar las rutas en la consola visual del modal para que el usuario verifique en su GitHub
+                    diagnosticContainer.innerHTML = pathsTried.map(p => `<div class="truncate text-rose-300">✗ ${p}</div>`).join('');
                     return;
                 }
 
-                const currentExt = EXTENSIONS_TO_TRY[index];
-                const testPath = `${folder}/${baseName}.${currentExt}`;
+                const currentFolder = FOLDERS_TO_TRY[folderIndex];
+                const currentExt = EXTENSIONS_TO_TRY[extIndex];
+                const testPath = `${currentFolder}/${baseName}.${currentExt}`;
+                pathsTried.push(testPath);
 
                 const tempImg = new Image();
                 tempImg.onload = () => {
                     imgElement.src = testPath;
-                    fallbackEl.classList.add('hidden');
+                    fallbackEl.classList.add('hidden'); // Todo correcto
                 };
                 tempImg.onerror = () => {
-                    index++;
+                    // Ir a la siguiente extensión de archivo
+                    extIndex++;
+                    if (extIndex >= EXTENSIONS_TO_TRY.length) {
+                        extIndex = 0;
+                        folderIndex++; // Probar en la siguiente carpeta si se acabaron las extensiones de la actual
+                    }
                     tryNext();
                 };
                 tempImg.src = testPath;
@@ -466,7 +487,7 @@
                             expected = `No, ${pr} isn't. ${pr === 'he' ? "he's" : "she's"} ${baseArtSpacer}${baseCleanName}.`;
                         }
                     } else {
-                        // RESPUESTAS AFIRMATIVAS: Ahora requiere respuestas largas estructuradas con contracción
+                        // RESPUESTAS AFIRMATIVAS: Respuestas largas estructuradas con contracción
                         const baseCleanName = baseProf.name.replace('_', ' ');
                         const baseArtSpacer = baseProf.article ? `${baseProf.article} ` : "";
                         
@@ -528,9 +549,9 @@
             document.getElementById('feedback-panel').classList.add('translate-y-full');
             document.getElementById('help-panel').classList.add('hidden');
 
-            // Cargar imagen local usando el sistema robusto de múltiples extensiones y carpeta real
+            // Cargar imagen local usando el sistema robusto multiorigen de carpetas y extensiones
             const imgEl = document.getElementById('ex-img');
-            loadWithFallbackExtensions(imgEl, './profesiones_recortadas', ex.profession.name);
+            loadWithFallbackExtensions(imgEl, ex.profession.name);
 
             if (activeTab === 'answers') {
                 document.getElementById('exercise-type-badge').classList.remove('hidden');
