@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es" class="h-full">
 <head>
     <meta charset="UTF-8">
@@ -54,7 +54,7 @@
             <div class="flex items-center gap-2 w-full sm:w-auto">
                 <button onclick="openSettings()" class="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 border border-slate-700 transition">
                     <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i>
-                    <span>Configurar</span>
+                    <span>Gemini Voices</span>
                 </button>
                 
                 <!-- Estado del Estudiante -->
@@ -201,7 +201,7 @@
         </div>
     </main>
 
-    <!-- SETTINGS / CONFIG DIALOG -->
+    <!-- SETTINGS / GEMINI CONFIG DIALOG -->
     <div id="settings-dialog" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 hidden">
         <div class="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl relative">
             <button onclick="closeSettings()" class="absolute right-4 top-4 text-slate-400 hover:text-white transition">
@@ -210,29 +210,19 @@
             
             <div class="flex items-center gap-3 mb-4">
                 <div class="bg-indigo-600/20 text-indigo-400 p-2 rounded-xl">
-                    <i class="fa-solid fa-sliders text-lg"></i>
+                    <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
                 </div>
-                <h2 class="text-xl font-extrabold text-slate-100">Configuración Avanzada</h2>
+                <h2 class="text-xl font-extrabold text-slate-100">Voces Gemini Premium</h2>
             </div>
+            
+            <p class="text-sm text-slate-400 mb-6">
+                Activa la síntesis de voz de Gemini de alta fidelidad. Consigue tu API Key gratuita en 
+                <a href="https://aistudio.google.com/" target="_blank" class="text-indigo-400 hover:underline inline-flex items-center gap-1 font-bold">
+                    Google AI Studio <i class="fa-solid fa-external-link text-xs"></i>
+                </a>.
+            </p>
 
-            <!-- TABS INTERNAS DE AJUSTES -->
-            <div class="flex bg-slate-950 p-1 rounded-xl border border-slate-800 mb-4">
-                <button onclick="toggleSettingsTab('api-settings')" id="tab-btn-api" class="flex-1 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white">
-                    <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Gemini
-                </button>
-                <button onclick="toggleSettingsTab('sheets-settings')" id="tab-btn-sheets" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-400">
-                    <i class="fa-solid fa-table mr-1"></i> Google Sheets
-                </button>
-            </div>
-
-            <!-- SECCIÓN GEMINI -->
-            <div id="settings-api-panel" class="space-y-4">
-                <p class="text-xs text-slate-400">
-                    Activa la síntesis de voz de Gemini de alta fidelidad. Consigue tu API Key gratuita en 
-                    <a href="https://aistudio.google.com/" target="_blank" class="text-indigo-400 hover:underline inline-flex items-center gap-1 font-bold">
-                        Google AI Studio <i class="fa-solid fa-external-link text-[10px]"></i>
-                    </a>.
-                </p>
+            <div class="space-y-4 mb-6">
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Gemini API Key</label>
                     <input type="password" id="gemini-key-input" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 outline-none focus:border-indigo-500 transition text-sm" placeholder="AIzaSy...">
@@ -250,33 +240,15 @@
                         <option value="Aoede">Aoede (Femenina / Clara)</option>
                     </select>
                 </div>
-                <div class="flex gap-2 pt-2">
-                    <button onclick="saveAdvancedSettings()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition text-xs">
-                        Guardar Configuración
-                    </button>
-                    <button onclick="testGeminiVoice()" class="px-3 bg-slate-850 hover:bg-slate-800 border border-slate-700 rounded-xl text-slate-200 transition text-xs">
-                        <i class="fa-solid fa-play"></i> Probar Voz
-                    </button>
-                </div>
             </div>
 
-            <!-- SECCIÓN GOOGLE SHEETS -->
-            <div id="settings-sheets-panel" class="space-y-4 hidden">
-                <p class="text-xs text-slate-400">
-                    Ingresa el link web que te dio tu Google Sheets (Google Apps Script Web App URL) para guardar los reportes.
-                </p>
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Web App URL de Google Sheets</label>
-                    <input type="url" id="sheets-url-input" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-200 outline-none focus:border-indigo-500 transition text-sm" placeholder="https://script.google.com/macros/s/.../exec">
-                </div>
-                <div class="flex gap-2 pt-2">
-                    <button onclick="saveAdvancedSettings()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition text-xs">
-                        Guardar Configuración
-                    </button>
-                    <button onclick="testSheetsConnection()" class="px-3 bg-slate-850 hover:bg-slate-800 border border-slate-700 rounded-xl text-slate-200 transition text-xs">
-                        <i class="fa-solid fa-network-wired"></i> Probar Envío
-                    </button>
-                </div>
+            <div class="flex gap-3">
+                <button onclick="saveGeminiSettingsOnly()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition">
+                    Guardar Configuración
+                </button>
+                <button onclick="testGeminiVoice()" class="px-4 bg-slate-850 hover:bg-slate-800 border border-slate-700 rounded-xl text-slate-200 transition">
+                    <i class="fa-solid fa-play"></i> Probar
+                </button>
             </div>
         </div>
     </div>
@@ -306,7 +278,7 @@
                     <span class="text-xs text-slate-400 font-bold uppercase tracking-wider">Acceder de Forma Rápida</span>
                     <div id="google-btn-container" class="w-full flex justify-center">
                         <div id="g_id_onload"
-                             data-client_id="YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com"
+                             data-client_id="1050263760705-9lp9gkpnr9qe15qf46ijdedcn0k7c5dp.apps.googleusercontent.com"
                              data-context="signin"
                              data-ux_mode="popup"
                              data-callback="handleCredentialResponse"
@@ -466,7 +438,6 @@
         ];
 
         // --- ENLACE DIRECTO DE CONFIGURACIÓN ---
-        // Reemplaza esta cadena de texto por el enlace de tu Google Apps Script final si deseas hardcodearlo
         const DEFAULT_SHEETS_URL = "https://script.google.com/macros/s/AKfycbxeYYE9K4_Q9HDZKRfM-lmYzVYuZvCUoI8Lylp8jmAiVMwOaT7WftWL6GDPouOi2W8h/exec";
 
         // Estado de la aplicación
@@ -482,7 +453,9 @@
         // Configuraciones de APIs cargadas en localStorage
         let geminiApiKey = localStorage.getItem('pm_gemini_key') || "";
         let geminiVoice = localStorage.getItem('pm_gemini_voice') || "Kore";
-        let sheetsWebUrl = localStorage.getItem('pm_sheets_url') || (DEFAULT_SHEETS_URL.includes("TU_URL_AQUÍ") ? "" : DEFAULT_SHEETS_URL);
+        
+        // La URL de Google Sheets se lee directamente del código del docente
+        let sheetsWebUrl = DEFAULT_SHEETS_URL;
 
         // Datos de sesión del estudiante
         let currentStudent = JSON.parse(localStorage.getItem('pm_student')) || null;
@@ -780,7 +753,7 @@
                 updateProfileStats();
                 
                 // Sincronizar automáticamente cada 3 aciertos si la sesión está conectada
-                if (currentStudent && sheetsWebUrl && (score.correct + creationCorrectCount) % 3 === 0) {
+                if (currentStudent && (score.correct + creationCorrectCount) % 3 === 0) {
                     silentSyncProgress();
                 }
 
@@ -821,7 +794,7 @@
             if (currentIndex >= 90) {
                 showNotification(`¡Felicidades! Práctica de 90 ejercicios completada.`, "success");
                 
-                if (currentStudent && sheetsWebUrl) {
+                if (currentStudent) {
                     syncProgressNow();
                 }
 
@@ -950,31 +923,9 @@
         }
 
         // --- MANEJO DE CONFIGURACIÓN Y MODAL ---
-        let currentSettingsTab = 'api-settings';
-        function toggleSettingsTab(tabName) {
-            currentSettingsTab = tabName;
-            const tabBtnApi = document.getElementById('tab-btn-api');
-            const tabBtnSheets = document.getElementById('tab-btn-sheets');
-            const apiPanel = document.getElementById('settings-api-panel');
-            const sheetsPanel = document.getElementById('settings-sheets-panel');
-
-            if (tabName === 'api-settings') {
-                tabBtnApi.className = "flex-1 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white";
-                tabBtnSheets.className = "flex-1 py-2 rounded-lg text-xs font-bold text-slate-400";
-                apiPanel.classList.remove('hidden');
-                sheetsPanel.classList.add('hidden');
-            } else {
-                tabBtnApi.className = "flex-1 py-2 rounded-lg text-xs font-bold text-slate-400";
-                tabBtnSheets.className = "flex-1 py-2 rounded-lg text-xs font-bold bg-indigo-600 text-white";
-                apiPanel.classList.add('hidden');
-                sheetsPanel.classList.remove('hidden');
-            }
-        }
-
         function openSettings() {
             document.getElementById('gemini-key-input').value = geminiApiKey;
             document.getElementById('gemini-voice-select').value = geminiVoice;
-            document.getElementById('sheets-url-input').value = sheetsWebUrl;
             document.getElementById('settings-dialog').classList.remove('hidden');
         }
 
@@ -982,18 +933,15 @@
             document.getElementById('settings-dialog').classList.add('hidden');
         }
 
-        function saveAdvancedSettings() {
+        function saveGeminiSettingsOnly() {
             geminiApiKey = document.getElementById('gemini-key-input').value.trim();
             geminiVoice = document.getElementById('gemini-voice-select').value;
-            sheetsWebUrl = document.getElementById('sheets-url-input').value.trim();
 
             localStorage.setItem('pm_gemini_key', geminiApiKey);
             localStorage.setItem('pm_gemini_voice', geminiVoice);
-            localStorage.setItem('pm_sheets_url', sheetsWebUrl);
 
             closeSettings();
-            showNotification("Configuración guardada correctamente.", "success");
-            checkSyncBannerStatus();
+            showNotification("Configuración de voz premium actualizada.", "success");
         }
 
         function testGeminiVoice() {
@@ -1114,7 +1062,7 @@
 
         function checkSyncBannerStatus() {
             const banner = document.getElementById('sync-banner');
-            if (currentStudent && sheetsWebUrl) {
+            if (currentStudent) {
                 banner.classList.remove('hidden');
             } else {
                 banner.classList.add('hidden');
@@ -1152,12 +1100,6 @@
                 openProfileModal();
                 return;
             }
-            if (!sheetsWebUrl) {
-                showNotification("Aún no has configurado la URL del Google Sheets del profesor.", "error");
-                openSettings();
-                toggleSettingsTab('sheets-settings');
-                return;
-            }
 
             showNotification("Sincronizando progreso con la nube...", "info");
 
@@ -1181,37 +1123,6 @@
             } catch (error) {
                 console.log("Estado de envío:", error);
                 showNotification("Datos enviados de forma segura al Google Sheets.", "success");
-            }
-        }
-
-        async function testSheetsConnection() {
-            const testUrl = document.getElementById('sheets-url-input').value.trim();
-            if (!testUrl) {
-                showNotification("Ingresa la URL del Apps Script antes de probar.", "error");
-                return;
-            }
-
-            showNotification("Enviando reporte de prueba...", "info");
-
-            const testPayload = {
-                fecha: new Date().toLocaleString("es-ES"),
-                email: "test@professionmaster.com",
-                nombre: "Estudiante de Prueba",
-                gramatica: 5,
-                preguntas: 3,
-                progreso: "Test / 90"
-            };
-
-            try {
-                await fetch(testUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify(testPayload)
-                });
-
-                showNotification("¡Envío de prueba completado con éxito! Comprueba tu planilla.", "success");
-            } catch (error) {
-                showNotification("El envío se realizó. Revisa si se creó la fila en tu Sheets.", "info");
             }
         }
 
