@@ -340,13 +340,18 @@
                     </div>
                 </div>
 
-                <div class="flex gap-2">
-                    <button onclick="syncProgressNow()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition text-sm">
+                <div class="flex flex-col gap-2">
+                    <button onclick="syncProgressNow()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 rounded-xl transition text-sm">
                         <i class="fa-solid fa-cloud-arrow-up mr-1"></i> Sincronizar Progreso
                     </button>
-                    <button onclick="studentLogout()" class="px-4 bg-slate-850 hover:bg-slate-800 border border-slate-700 text-rose-400 rounded-xl transition text-sm">
-                        Salir
-                    </button>
+                    <div class="flex gap-2 w-full">
+                        <button onclick="resetAllProgress()" class="flex-1 px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl transition text-sm">
+                            <i class="fa-solid fa-rotate-left mr-1"></i> Reiniciar
+                        </button>
+                        <button onclick="studentLogout()" class="flex-1 px-3 py-2.5 bg-rose-950/40 hover:bg-rose-950/60 border border-rose-900/50 text-rose-400 rounded-xl transition text-sm">
+                            Salir
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -357,7 +362,7 @@
 
     <!-- FOOTER -->
     <footer class="border-t border-slate-800/80 bg-slate-950/50 py-4 px-4 text-center mt-auto">
-        <p class="text-xs text-slate-500">&copy; 2026 Profession Master - Aprendizaje con Sincronización Automática.</p>
+        <p class="text-xs text-slate-500">&copy; 2026 Profession Master - Aprendizaje con Sincronización Automática y Persistencia Local.</p>
     </footer>
 
     <!-- LOGIC SCRIPT -->
@@ -440,12 +445,15 @@
         // --- ENLACE DIRECTO DE CONFIGURACIÓN ---
         const DEFAULT_SHEETS_URL = "https://script.google.com/macros/s/AKfycbzQUGtHDJjfTvaOnpG6CNe71XNsmR67ujmWaLcr9ZeKrCARTCu5wJjeSpKGrYzrUpse/exec";
 
-        // Estado de la aplicación
-        let activeTab = 'answers'; 
+        // Estado de la aplicación (Se recupera de localStorage si existe)
+        let activeTab = localStorage.getItem('pm_active_tab') || 'answers'; 
         let exercises = [];
-        let currentIndex = 0;
-        let score = { correct: 0, incorrect: 0 };
-        let creationCorrectCount = 0; 
+        let currentIndex = parseInt(localStorage.getItem('pm_current_index')) || 0;
+        let score = { 
+            correct: parseInt(localStorage.getItem('pm_score_correct')) || 0, 
+            incorrect: parseInt(localStorage.getItem('pm_score_incorrect')) || 0 
+        };
+        let creationCorrectCount = parseInt(localStorage.getItem('pm_creation_correct')) || 0; 
         let isListening = false;
         let speechRecognition = null;
         let attempts = 0; 
@@ -462,6 +470,18 @@
 
         const EXTENSIONS_TO_TRY = ['png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'webp', 'WEBP'];
         const FOLDERS_TO_TRY = ['./profesiones_recortadas', 'profesiones_recortadas', './Profesiones_recortadas', 'Profesiones_recortadas'];
+
+        // Guardar estado completo en localStorage para persistencia perfecta
+        function saveStateToLocalStorage() {
+            localStorage.setItem('pm_active_tab', activeTab);
+            localStorage.setItem('pm_current_index', currentIndex.toString());
+            localStorage.setItem('pm_score_correct', score.correct.toString());
+            localStorage.setItem('pm_score_incorrect', score.incorrect.toString());
+            localStorage.setItem('pm_creation_correct', creationCorrectCount.toString());
+            if (exercises && exercises.length > 0) {
+                localStorage.setItem('pm_exercises_pool_' + activeTab, JSON.stringify(exercises));
+            }
+        }
 
         function loadWithFallbackExtensions(imgElement, baseName) {
             const fallbackEl = document.getElementById('img-fallback-msg');
@@ -563,8 +583,21 @@
             };
         }
 
-        // Generar pool de 90 ejercicios distribuidos pedagógicamente
+        // Generar pool de 90 ejercicios distribuidos pedagógicamente o recuperarlos de la memoria
         function generateExercises() {
+            // Intentar cargar la lista ya barajada previamente para mantener el orden exacto si el alumno refresca
+            const storedPool = localStorage.getItem('pm_exercises_pool_' + activeTab);
+            if (storedPool) {
+                try {
+                    exercises = JSON.parse(storedPool);
+                    if (exercises.length === 90) {
+                        return; // Pool restaurado con éxito
+                    }
+                } catch(e) {
+                    console.warn("No se pudo restaurar el pool de preguntas guardadas. Creando uno nuevo...", e);
+                }
+            }
+
             exercises = [];
             const shuffled = [...PROFESSIONS_LIST].sort(() => 0.5 - Math.random());
             
@@ -646,12 +679,20 @@
 
             exercises.sort(() => 0.5 - Math.random());
             exercises.forEach((ex, idx) => ex.id = idx + 1);
+            
+            // Guardar pool en la memoria
+            localStorage.setItem('pm_exercises_pool_' + activeTab, JSON.stringify(exercises));
         }
 
         // Cargar Ejercicio Actual
         function loadCurrentExercise() {
             if (exercises.length === 0) return;
             
+            // Seguridad por desbordamiento de índice guardado
+            if (currentIndex >= exercises.length) {
+                currentIndex = 0;
+            }
+
             const ex = exercises[currentIndex];
             attempts = 0;
 
@@ -678,13 +719,16 @@
                     document.getElementById('dictate-banner').classList.add('hidden');
                 }
             }
+
+            saveStateToLocalStorage();
         }
 
-        // Switch de pestañas principales
+        // Switch de pestañas principales con guardado
         function switchTab(tab) {
             activeTab = tab;
-            currentIndex = 0;
-            score = { correct: 0, incorrect: 0 };
+            
+            // Restaurar los índices correspondientes del almacenamiento local de manera independiente
+            currentIndex = parseInt(localStorage.getItem('pm_current_index_' + tab)) || 0;
             
             const btnAns = document.getElementById('btn-ans');
             const btnCre = document.getElementById('btn-cre');
@@ -697,11 +741,13 @@
                 btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 bg-indigo-600 text-white shadow";
             }
 
-            document.getElementById('score-correct').textContent = "0";
-            document.getElementById('score-questions').textContent = "0";
+            // Actualizar visualmente los puntajes de la sesión
+            document.getElementById('score-correct').textContent = score.correct;
+            document.getElementById('score-questions').textContent = creationCorrectCount;
 
             generateExercises();
             loadCurrentExercise();
+            saveStateToLocalStorage();
         }
 
         function cleanText(text) {
@@ -751,6 +797,7 @@
                 feedbackPanel.classList.remove('translate-y-full');
                 
                 updateProfileStats();
+                saveStateToLocalStorage();
                 
                 // Sincronizar automáticamente cada 3 aciertos si la sesión está conectada
                 if (currentStudent && (score.correct + creationCorrectCount) % 3 === 0) {
@@ -779,6 +826,7 @@
                 }
                 
                 feedbackPanel.classList.remove('translate-y-full');
+                saveStateToLocalStorage();
             }
         }
 
@@ -791,6 +839,9 @@
             document.getElementById('feedback-panel').classList.add('translate-y-full');
             
             currentIndex++;
+            // Guardar índice de la pestaña específica
+            localStorage.setItem('pm_current_index_' + activeTab, currentIndex.toString());
+
             if (currentIndex >= 90) {
                 showNotification(`¡Felicidades! Práctica de 90 ejercicios completada.`, "success");
                 
@@ -799,13 +850,21 @@
                 }
 
                 currentIndex = 0;
+                localStorage.setItem('pm_current_index_' + activeTab, '0');
                 score = { correct: 0, incorrect: 0 };
                 creationCorrectCount = 0;
                 document.getElementById('score-correct').textContent = "0";
                 document.getElementById('score-questions').textContent = "0";
+                
+                // Limpiar pools antiguos para barajar de nuevo
+                localStorage.removeItem('pm_exercises_pool_answers');
+                localStorage.removeItem('pm_exercises_pool_creation');
+                
                 generateExercises();
             }
+            
             loadCurrentExercise();
+            saveStateToLocalStorage();
         }
 
         function bypassDictation() {
@@ -857,6 +916,11 @@
         }
 
         async function speakWithGemini(text) {
+            if (!geminiApiKey) {
+                speakWithGoogle(text);
+                return;
+            }
+            
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${geminiApiKey}`;
             const payload = {
                 contents: [{ parts: [{ text: text }] }],
@@ -924,6 +988,10 @@
 
         // --- MANEJO DE CONFIGURACIÓN Y MODAL ---
         function openSettings() {
+            // Leer desde localStorage para asegurar que siempre cargue la clave guardada
+            geminiApiKey = localStorage.getItem('pm_gemini_key') || "";
+            geminiVoice = localStorage.getItem('pm_gemini_voice') || "Kore";
+            
             document.getElementById('gemini-key-input').value = geminiApiKey;
             document.getElementById('gemini-voice-select').value = geminiVoice;
             document.getElementById('settings-dialog').classList.remove('hidden');
@@ -937,11 +1005,12 @@
             geminiApiKey = document.getElementById('gemini-key-input').value.trim();
             geminiVoice = document.getElementById('gemini-voice-select').value;
 
+            // Guardar firmemente en localStorage de forma explícita
             localStorage.setItem('pm_gemini_key', geminiApiKey);
             localStorage.setItem('pm_gemini_voice', geminiVoice);
 
             closeSettings();
-            showNotification("Configuración de voz premium actualizada.", "success");
+            showNotification("Configuración de voz premium actualizada de forma segura.", "success");
         }
 
         function testGeminiVoice() {
@@ -1046,6 +1115,33 @@
             checkSyncBannerStatus();
         }
 
+        // Restablecer el progreso completo de manera local si el estudiante lo desea
+        function resetAllProgress() {
+            if (confirm("¿Estás seguro de que deseas reiniciar todo tu progreso actual de ejercicios? Las API KEYS de Gemini y tu inicio de sesión no se borrarán.")) {
+                currentIndex = 0;
+                score = { correct: 0, incorrect: 0 };
+                creationCorrectCount = 0;
+                
+                localStorage.setItem('pm_current_index', '0');
+                localStorage.setItem('pm_current_index_answers', '0');
+                localStorage.setItem('pm_current_index_creation', '0');
+                localStorage.setItem('pm_score_correct', '0');
+                localStorage.setItem('pm_score_incorrect', '0');
+                localStorage.setItem('pm_creation_correct', '0');
+                
+                localStorage.removeItem('pm_exercises_pool_answers');
+                localStorage.removeItem('pm_exercises_pool_creation');
+
+                document.getElementById('score-correct').textContent = "0";
+                document.getElementById('score-questions').textContent = "0";
+                
+                generateExercises();
+                loadCurrentExercise();
+                closeProfileModal();
+                showNotification("Progreso reiniciado correctamente de manera local.", "info");
+            }
+        }
+
         function updateStudentHeader() {
             const btnText = document.getElementById('header-student-name');
             if (currentStudent) {
@@ -1137,6 +1233,27 @@
         }
 
         window.onload = () => {
+            // Asegurar que las llaves guardadas se carguen de vuelta en las variables globales
+            geminiApiKey = localStorage.getItem('pm_gemini_key') || "";
+            geminiVoice = localStorage.getItem('pm_gemini_voice') || "Kore";
+            activeTab = localStorage.getItem('pm_active_tab') || 'answers';
+            
+            // Establecer visualmente la pestaña guardada en el DOM
+            const btnAns = document.getElementById('btn-ans');
+            const btnCre = document.getElementById('btn-cre');
+            if (activeTab === 'answers') {
+                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 bg-indigo-600 text-white shadow";
+                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 text-slate-400 hover:text-white";
+                currentIndex = parseInt(localStorage.getItem('pm_current_index_answers')) || 0;
+            } else {
+                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 text-slate-400 hover:text-white";
+                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 bg-indigo-600 text-white shadow";
+                currentIndex = parseInt(localStorage.getItem('pm_current_index_creation')) || 0;
+            }
+
+            document.getElementById('score-correct').textContent = score.correct;
+            document.getElementById('score-questions').textContent = creationCorrectCount;
+
             updateStudentHeader();
             checkSyncBannerStatus();
             generateExercises();
