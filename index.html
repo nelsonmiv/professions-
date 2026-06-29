@@ -437,8 +437,8 @@
             { name: "teachers", pronoun: "they", article: "", isPlural: true }
         ];
 
-        // --- ENLACE DIRECTO DE CONFIGURACIÓN ---
-        const DEFAULT_SHEETS_URL = "https://script.google.com/macros/s/AKfycbxeYYE9K4_Q9HDZKRfM-lmYzVYuZvCUoI8Lylp8jmAiVMwOaT7WftWL6GDPouOi2W8h/exec";
+        // --- ENLACE DIRECTO DE CONFIGURACIÓN ACTIVO ---
+        const DEFAULT_SHEETS_URL = "https://script.google.com/macros/s/AKfycbzWgEduF-c1eLisftUK6Y7biuih7emhnrTihrOeilmv50W-ScxclG5R90aaKBMDgeiq/exec";
 
         // Estado de la aplicación
         let activeTab = 'answers'; 
@@ -1069,7 +1069,7 @@
             }
         }
 
-        // --- SISTEMA DE SINCRONIZACIÓN GOOGLE SHEETS ---
+        // --- SISTEMA DE SINCRONIZACIÓN GOOGLE SHEETS (OPTIMIZADO CORS) ---
         async function silentSyncProgress() {
             if (!currentStudent || !sheetsWebUrl) return;
 
@@ -1083,10 +1083,11 @@
             };
 
             try {
+                // Utilizando modo no-cors y tipo de contenido text/plain para evitar bloqueos CORS
                 await fetch(sheetsWebUrl, {
                     method: 'POST',
                     mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(payload)
                 });
             } catch (e) {
@@ -1113,16 +1114,18 @@
             };
 
             try {
+                // Utilizando la forma definitiva sin bloqueos de navegador
                 await fetch(sheetsWebUrl, {
                     method: 'POST',
+                    mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(payload)
                 });
 
                 showNotification("¡Progreso enviado a la planilla del docente con éxito!", "success");
             } catch (error) {
-                console.log("Estado de envío:", error);
-                showNotification("Datos enviados de forma segura al Google Sheets.", "success");
+                console.error("Error al sincronizar:", error);
+                showNotification("Error en la conexión con la base de datos.", "error");
             }
         }
 
