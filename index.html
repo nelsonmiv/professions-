@@ -752,8 +752,8 @@
                 
                 updateProfileStats();
                 
-                // Sincronizar automáticamente cada 3 aciertos si la sesión está conectada
-                if (currentStudent && (score.correct + creationCorrectCount) % 3 === 0) {
+                // Sincronizar automáticamente con cada respuesta correcta si la sesión está conectada
+                if (currentStudent) {
                     silentSyncProgress();
                 }
 
