@@ -438,7 +438,7 @@
         ];
 
         // --- ENLACE DIRECTO DE CONFIGURACIÓN ACTIVO ---
-        const DEFAULT_SHEETS_URL = "https://script.google.com/macros/s/AKfycbzWgEduF-c1eLisftUK6Y7biuih7emhnrTihrOeilmv50W-ScxclG5R90aaKBMDgeiq/exec";
+        const DEFAULT_SHEETS_URL = "https://script.google.com/macros/s/AKfycbw-GMgz-bxCfUL0Oy-9XInxCQtpGAuOKP4oAQO9cnctJGEPRziL-Q22S8iu4lVPMk9d/exec";
 
         // Estado de la aplicación
         let activeTab = 'answers'; 
@@ -1083,13 +1083,14 @@
             };
 
             try {
-                // Utilizando modo no-cors y tipo de contenido text/plain para evitar bloqueos CORS
+                // Utilizando modo no-cors y tipo de contenido text/plain para evitar pre-flights OPTIONS
                 await fetch(sheetsWebUrl, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(payload)
                 });
+                console.log("Progreso guardado automáticamente en segundo plano.");
             } catch (e) {
                 console.warn("Envío silencioso falló temporalmente.", e);
             }
@@ -1102,6 +1103,7 @@
                 return;
             }
 
+            console.log("Iniciando sincronización manual...");
             showNotification("Sincronizando progreso con la nube...", "info");
 
             const payload = {
@@ -1114,7 +1116,7 @@
             };
 
             try {
-                // Utilizando la forma definitiva sin bloqueos de navegador
+                // El navegador maneja la petición como un envío de texto libre sin bloquear CORS
                 await fetch(sheetsWebUrl, {
                     method: 'POST',
                     mode: 'no-cors',
@@ -1125,7 +1127,7 @@
                 showNotification("¡Progreso enviado a la planilla del docente con éxito!", "success");
             } catch (error) {
                 console.error("Error al sincronizar:", error);
-                showNotification("Error en la conexión con la base de datos.", "error");
+                showNotification("Error de red. Revisa tu conexión.", "error");
             }
         }
 
