@@ -178,7 +178,7 @@
                 <h3 id="feedback-title" class="text-2xl font-black mb-1"></h3>
                 <p id="feedback-message" class="text-slate-400 max-w-md mb-4 text-sm"></p>
                 
-                <!-- Detalles de la Respuesta (Se muestra siempre en caso de error) -->
+                <!-- Detalles de la Respuesta -->
                 <div id="feedback-details" class="bg-slate-900 p-4 rounded-xl border border-slate-800 mb-5 text-left max-w-md w-full hidden">
                     <p class="text-xs text-slate-500 mb-1 font-bold uppercase tracking-wider">Tu respuesta:</p>
                     <p id="feedback-user-answer" class="font-bold text-rose-400 line-through mb-3 text-sm"></p>
@@ -438,7 +438,7 @@
         ];
 
         // --- ENLACE DIRECTO DE CONFIGURACIÓN ACTIVO ---
-        const DEFAULT_SHEETS_URL = "https://script.google.com/macros/s/AKfycbvyq2c8slv67XccGJA661zUEN_qMZEb1j-rjKS8zl9j0aZ7lvq1G0y8qBGU8M0jWAEg/exec";
+        const DEFAULT_SHEETS_URL = "https://script.google.com/macros/s/AKfycbzQUGtHDJjfTvaOnpG6CNe71XNsmR67ujmWaLcr9ZeKrCARTCu5wJjeSpKGrYzrUpse/exec";
 
         // Estado de la aplicación
         let activeTab = 'answers'; 
@@ -463,35 +463,33 @@
         const EXTENSIONS_TO_TRY = ['png', 'PNG', 'jpg', 'JPG', 'jpeg', 'JPEG', 'webp', 'WEBP'];
         const FOLDERS_TO_TRY = ['./profesiones_recortadas', 'profesiones_recortadas', './Profesiones_recortadas', 'Profesiones_recortadas'];
 
-        // Guarda el estado del usuario localmente por correo electrónico
+        // Guarda el estado del usuario localmente (ya sea invitado o alumno logueado)
         function saveLocalState() {
-            if (currentStudent) {
-                const state = {
-                    score: score,
-                    creationCorrectCount: creationCorrectCount,
-                    currentIndex: currentIndex,
-                    activeTab: activeTab
-                };
-                localStorage.setItem(`pm_state_${currentStudent.email}`, JSON.stringify(state));
-                console.log("Estado guardado localmente en el dispositivo.");
-            }
+            const key = currentStudent ? `pm_state_${currentStudent.email}` : 'pm_state_guest';
+            const state = {
+                score: score,
+                creationCorrectCount: creationCorrectCount,
+                currentIndex: currentIndex,
+                activeTab: activeTab
+            };
+            localStorage.setItem(key, JSON.stringify(state));
+            console.log("Estado guardado localmente en el dispositivo para la clave: " + key);
         }
 
-        // Carga el estado del usuario localmente por correo electrónico
+        // Carga el estado del usuario localmente (ya sea invitado o alumno logueado)
         function loadLocalState() {
-            if (currentStudent) {
-                const savedState = JSON.parse(localStorage.getItem(`pm_state_${currentStudent.email}`));
-                if (savedState) {
-                    score = savedState.score || { correct: 0, incorrect: 0 };
-                    creationCorrectCount = savedState.creationCorrectCount || 0;
-                    currentIndex = savedState.currentIndex || 0;
-                    activeTab = savedState.activeTab || 'answers';
-                    console.log("Estado local recuperado correctamente.");
-                } else {
-                    score = { correct: 0, incorrect: 0 };
-                    creationCorrectCount = 0;
-                    currentIndex = 0;
-                }
+            const key = currentStudent ? `pm_state_${currentStudent.email}` : 'pm_state_guest';
+            const savedState = JSON.parse(localStorage.getItem(key));
+            if (savedState) {
+                score = savedState.score || { correct: 0, incorrect: 0 };
+                creationCorrectCount = savedState.creationCorrectCount || 0;
+                currentIndex = savedState.currentIndex || 0;
+                activeTab = savedState.activeTab || 'answers';
+                console.log("Estado local recuperado correctamente desde la clave: " + key);
+            } else {
+                score = { correct: 0, incorrect: 0 };
+                creationCorrectCount = 0;
+                currentIndex = 0;
             }
         }
 
@@ -595,22 +593,43 @@
             };
         }
 
-        // Generar pool de 90 ejercicios distribuidos pedagógicamente
+        // Generar pool de 90 ejercicios de manera matemática predecible (evita reorganizar todo al recargar)
         function generateExercises() {
             exercises = [];
-            const shuffled = [...PROFESSIONS_LIST].sort(() => 0.5 - Math.random());
+            
+            // Hacemos una copia de la lista de profesiones
+            const list = [...PROFESSIONS_LIST];
+            
+            // Mezclamos la lista de manera determinista usando una semilla fija
+            // Esto garantiza que el orden de los ejercicios sea siempre idéntico entre recargas del navegador
+            let seed = 12345;
+            function pseudoRandom() {
+                let x = Math.sin(seed++) * 10000;
+                return x - Math.floor(x);
+            }
+            
+            // Mezcla determinista Fisher-Yates predecible
+            for (let i = list.length - 1; i > 0; i--) {
+                const j = Math.floor(pseudoRandom() * (i + 1));
+                const temp = list[i];
+                list[i] = list[j];
+                list[j] = temp;
+            }
             
             for (let i = 0; i < 90; i++) {
-                const baseProf = shuffled[i % shuffled.length];
+                const baseProf = list[i % list.length];
                 
                 if (activeTab === 'answers') {
-                    const isNegative = i < 63; // 70% negativas, 30% afirmativas
+                    // Distribución determinista: 70% negativas, 30% afirmativas
+                    const isNegative = (i % 10) < 7;
                     let questionProfession = baseProf;
                     
                     if (isNegative) {
-                        let wrongProf = shuffled[Math.floor(Math.random() * shuffled.length)];
+                        let wrongIdx = (i + 1) % list.length;
+                        let wrongProf = list[wrongIdx];
                         while (wrongProf.name === baseProf.name || wrongProf.isPlural !== baseProf.isPlural) {
-                            wrongProf = shuffled[Math.floor(Math.random() * shuffled.length)];
+                            wrongIdx = (wrongIdx + 1) % list.length;
+                            wrongProf = list[wrongIdx];
                         }
                         questionProfession = wrongProf;
                     }
@@ -655,8 +674,8 @@
                     });
 
                 } else {
-                    // SECCIÓN CREACIÓN DE PREGUNTAS
-                    const forceDictation = i < 63; 
+                    // SECCIÓN CREACIÓN DE PREGUNTAS (También determinista)
+                    const forceDictation = (i % 10) < 7;
                     const pr = baseProf.pronoun;
                     const art = baseProf.article;
                     const cleanName = baseProf.name.replace('_', ' ');
@@ -675,10 +694,6 @@
                     });
                 }
             }
-
-            // Mezclar ejercicios pero asegurar ID correlativo
-            exercises.sort(() => 0.5 - Math.random());
-            exercises.forEach((ex, idx) => ex.id = idx + 1);
         }
 
         // Cargar Ejercicio Actual
@@ -727,11 +742,11 @@
             const btnCre = document.getElementById('btn-cre');
 
             if (tab === 'answers') {
-                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 bg-indigo-600 text-white shadow";
-                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 text-slate-400 hover:text-white";
+                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 bg-indigo-600 text-white shadow";
+                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 text-slate-400 hover:text-white";
             } else {
-                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 text-slate-400 hover:text-white";
-                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition duration-200 bg-indigo-600 text-white shadow";
+                btnAns.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 text-slate-400 hover:text-white";
+                btnCre.className = "flex-1 sm:flex-none px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 bg-indigo-600 text-white shadow";
             }
 
             document.getElementById('score-correct').textContent = score.correct;
@@ -835,7 +850,7 @@
             
             currentIndex++;
             if (currentIndex >= 90) {
-                showNotification(`¡Felicidades! Práctica de 90 ejercicios completada.`, "success");
+                showNotification("¡Felicidades! Práctica de 90 ejercicios completada.", "success");
                 
                 if (currentStudent) {
                     syncProgressNow();
@@ -1134,26 +1149,25 @@
             }
         }
 
-        // --- SISTEMA DE SINCRONIZACIÓN GOOGLE SHEETS (OPTIMIZADO ANTI-CORS CON NO-CORS) ---
+        // --- SISTEMA DE SINCRONIZACIÓN GOOGLE SHEETS (MÉTODO x-www-form-urlencoded SEGURO) ---
         async function silentSyncProgress() {
             if (!currentStudent || !sheetsWebUrl) return;
 
-            const payload = {
-                fecha: new Date().toLocaleString("es-ES"),
-                email: currentStudent.email,
-                nombre: currentStudent.name,
-                gramatica: score.correct,
-                preguntas: creationCorrectCount,
-                progreso: `${currentIndex + 1} / 90`
-            };
+            // Enviamos los datos simulando un envío de formulario web estándar
+            // Esto es 100% compatible con CORS y no bloquea el navegador
+            const formData = new URLSearchParams();
+            formData.append('fecha', new Date().toLocaleString("es-ES"));
+            formData.append('email', currentStudent.email);
+            formData.append('nombre', currentStudent.name);
+            formData.append('gramatica', score.correct);
+            formData.append('preguntas', creationCorrectCount);
+            formData.append('progreso', `${currentIndex + 1} / 90`);
 
             try {
-                // Se envía como text/plain en modo no-cors para saltarse el bloqueo CORS de Chrome/Edge
                 await fetch(sheetsWebUrl, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify(payload)
+                    mode: 'no-cors', // Evita las verificaciones CORS del navegador
+                    body: formData  // Envía como application/x-www-form-urlencoded
                 });
                 console.log("Progreso guardado automáticamente en Sheets.");
             } catch (e) {
@@ -1171,22 +1185,19 @@
 
             showNotification("Sincronizando progreso con la nube...", "info");
 
-            const payload = {
-                fecha: new Date().toLocaleString("es-ES"),
-                email: currentStudent.email,
-                nombre: currentStudent.name,
-                gramatica: score.correct,
-                preguntas: creationCorrectCount,
-                progreso: `${currentIndex + 1} / 90`
-            };
+            const formData = new URLSearchParams();
+            formData.append('fecha', new Date().toLocaleString("es-ES"));
+            formData.append('email', currentStudent.email);
+            formData.append('nombre', currentStudent.name);
+            formData.append('gramatica', score.correct);
+            formData.append('preguntas', creationCorrectCount);
+            formData.append('progreso', `${currentIndex + 1} / 90`);
 
             try {
-                // 'mode: no-cors' es indispensable para omitir las redirecciones OPTIONS de Google
                 await fetch(sheetsWebUrl, {
                     method: 'POST',
                     mode: 'no-cors',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify(payload)
+                    body: formData
                 });
 
                 showNotification("¡Progreso enviado a la planilla del docente con éxito!", "success");
@@ -1210,10 +1221,8 @@
             updateStudentHeader();
             checkSyncBannerStatus();
             
-            // Si el alumno tiene sesión abierta, restaurar su estado desde el navegador
-            if (currentStudent) {
-                loadLocalState();
-            }
+            // Cargar el estado local (ya sea invitado o alumno)
+            loadLocalState();
             
             // Iniciar en la pestaña y ejercicio correcto restaurados
             switchTab(activeTab, true);
